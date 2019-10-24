@@ -52,10 +52,10 @@ def get_position_list(judgement_human):
 
 def calculatePoseSimiler(judgement_human_pos, target):
     d = 0
-    for i in best_human_pos.keys() & target.keys():
-        d += (abs(target[str(i)][0] - best_human_pos[str(i)][0]) \
-            + abs(target[str(i)][1] - best_human_pos[str(i)][1]))
-    d += len(set(best_human_pos.keys()).symmetric_difference(target.keys()))
+    for i in judgement_human_pos.keys() & target.keys():
+        d += (abs(target[str(i)][0] - judgement_human_pos[str(i)][0]) \
+            + abs(target[str(i)][1] - judgement_human_pos[str(i)][1]))
+    d += len(set(judgement_human_pos.keys()).symmetric_difference(target.keys()))
     return d/18
 
 def calculateHumanPoseFrame(image_path, model, resize, resize_out_ratio=4.0):
@@ -74,9 +74,9 @@ def calculateHumanPoseFrame(image_path, model, resize, resize_out_ratio=4.0):
     humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
     if len(humans) != 0:
         # 人物特定
-        judgement_human = get_best_human(humans)
+        judgement_human = get_judgement_human(humans)
         # 座標取得
-        judgement_human_pos = pos_list(judgement_human)
+        judgement_human_pos = get_position_list(judgement_human)
     else:
         human = None
         judgement_human_pos = {}
