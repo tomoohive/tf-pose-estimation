@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from tf_pose.estimator import TfPoseEstimator
 from tf_pose.networks import get_graph_path, model_wh
+import pprint
 
 logger = logging.getLogger('TfPoseEstimatorRun')
 logger.handlers.clear()
@@ -86,6 +87,7 @@ if __name__ == '__main__':
         plt.imshow(tmp2_even, cmap=plt.cm.gray, alpha=0.5)
         plt.colorbar()
         plt.show()
+        plt.savefig('result.png')
     except Exception as e:
         logger.warning('matplitlib error, %s' % e)
         cv2.imshow('result', image)

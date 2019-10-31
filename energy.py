@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 import time
+import gc
 
 from tf_pose import common
 import cv2
@@ -50,37 +51,98 @@ def get_position_list(judgement_human):
     
     return judgement_human_pos
 
-def calculatePoseSimiler(judgement_human_pos, target):
-    d = 0
-    for i in judgement_human_pos.keys() & target.keys():
-        d += (abs(target[str(i)][0] - judgement_human_pos[str(i)][0]) \
-            + abs(target[str(i)][1] - judgement_human_pos[str(i)][1]))
-    d += len(set(judgement_human_pos.keys()).symmetric_difference(target.keys()))
-    return d/18
+# def calculatePoseSimiler(judgement_human_pos, target):
+#     d = 0
+#     for i in judgement_human_pos.keys() & target.keys():
+#         d += (abs(target[str(i)][0] - judgement_human_pos[str(i)][0]) \
+#             + abs(target[str(i)][1] - judgement_human_pos[str(i)][1]))
+#     d += len(set(judgement_human_pos.keys()).symmetric_difference(target.keys()))
+#     return d/18
 
-def calculateHumanPoseFrame(image_path, model, resize, resize_out_ratio=4.0):
+def normalizeHumanPosePosition(judgement_human_pos):
+    if judgement_human_pos == {}:
+        return None
+    normalize_human_pos = {}
+    o_x = judgement_human_pos['0'][0]
+    o_y = judgement_human_pos['0'][1]
+    for key, values in judgement_human_pos.items():
+        if key == '0':
+            normalize_human_pos['0'] = (0,0)
+        else:
+            normalize_human_pos[key] = (o_x - values[0], o_y - values[1])
+    gc.collect()
+    return normalize_human_pos
+
+# def calculateHumanPoseFrame(image_path, model='mobilenet_thin', resize='432x368', resize_out_ratio=4.0):
+#     w, h = model_wh(resize)
+#     if w == 0 or h == 0:
+#         e = TfPoseEstimator(get_graph_path(model), target_size=(432, 368))
+#     else:
+#         e = TfPoseEstimator(get_graph_path(model), target_size=(w, h))
+
+#     image = common.read_imgfile(image_path, None, None)
+#     if image is None:
+#         logger.error('Image can not be read, path=%s' % image_path)
+#         sys.exit(-1)
+
+#     humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=resize_out_ratio)
+#     if len(humans) != 0:
+#         # 人物特定
+#         judgement_human = get_judgement_human(humans)
+#         # 座標取得
+#         judgement_human_pos = get_position_list(judgement_human)
+#     else:
+#         human = None
+#         judgement_human_pos = {}
+#     del e, image, humans
+#     gc.collect()
+#     return normalizeHumanPosePosition(judgement_human_pos)
+
+def calculateHumanPoseFrame(json_data, model='mobilenet_thin', resize='432x368', resize_out_ratio=4.0):
+    tmp_json_data = json_data
     w, h = model_wh(resize)
     if w == 0 or h == 0:
         e = TfPoseEstimator(get_graph_path(model), target_size=(432, 368))
     else:
         e = TfPoseEstimator(get_graph_path(model), target_size=(w, h))
 
+    for idx, json_datum in enumerate(json_data['beats_data']):
+        image = common.read_imgfile(json_datum['start_frame_file'], None, None)
+        if image is None:
+            logger.error('Image can not be read, path=%s' % image_path)
+            sys.exit(-1)
 
-    image = common.read_imgfile(image_path, None, None)
-    if image is None:
-        logger.error('Image can not be read, path=%s' % image_path)
-        sys.exit(-1)
+        humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=resize_out_ratio)
+        if len(humans) != 0:
+            # 人物特定
+            judgement_human = get_judgement_human(humans)
+            # 座標取得
+            judgement_human_pos = get_position_list(judgement_human)
+        else:
+            human = None
+            judgement_human_pos = {}
+        tmp_json_data['beats_data'][idx]['start_frame_pos'] = normalizeHumanPosePosition(judgement_human_pos)
+        gc.collect()
+    
+    for idx, json_datum in enumerate(json_data['beats_data']):
+        image = common.read_imgfile(json_datum['end_frame_file'], None, None)
+        if image is None:
+            logger.error('Image can not be read, path=%s' % image_path)
+            sys.exit(-1)
 
-    humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
-    if len(humans) != 0:
-        # 人物特定
-        judgement_human = get_judgement_human(humans)
-        # 座標取得
-        judgement_human_pos = get_position_list(judgement_human)
-    else:
-        human = None
-        judgement_human_pos = {}
-    return humans, judgement_human, judgement_human_pos
+        humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=resize_out_ratio)
+        if len(humans) != 0:
+            # 人物特定
+            judgement_human = get_judgement_human(humans)
+            # 座標取得
+            judgement_human_pos = get_position_list(judgement_human)
+        else:
+            human = None
+            judgement_human_pos = {}
+        tmp_json_data['beats_data'][idx]['end_frame_pos'] = normalizeHumanPosePosition(judgement_human_pos)
+        gc.collect()
+
+    return tmp_json_data
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='tf-pose-estimation run')
