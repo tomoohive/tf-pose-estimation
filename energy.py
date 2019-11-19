@@ -63,8 +63,8 @@ def normalizeHumanPosePosition(judgement_human_pos):
     if judgement_human_pos == {}:
         return None
     normalize_human_pos = {}
-    o_x = judgement_human_pos['11'][0] - judgement_human_pos['8'][0]
-    o_y = judgement_human_pos['11'][1] - judgement_human_pos['8'][1]
+    o_x = (judgement_human_pos['11'][0] + judgement_human_pos['8'][0])/2
+    o_y = (judgement_human_pos['11'][1] + judgement_human_pos['8'][1])/2
     for key, values in judgement_human_pos.items():
         normalize_human_pos[key] = (o_x - values[0], o_y - values[1])
     gc.collect()
